@@ -40,20 +40,21 @@ if uploaded_file:
     if df is not None:
         st.success(f"Erfolgreich geladen: {len(df)} Zeilen")
         
-        # OpenAI Embeddings für den Index erstellen
-        @st.cache_resource
-        def build_vector_index(df):
-            """Erstellt einen FAISS-Vektorspeicher mit OpenAI-Embeddings"""
-            texts = df["Volltext"].tolist()
-            embeddings = openai.embeddings.create(
-                model="text-embedding-ada-002", 
-                input=texts
-            )["data"]
-            
-            vectors = np.array([e["embedding"] for e in embeddings]).astype("float32")
-            index = faiss.IndexFlatL2(vectors.shape[1])
-            index.add(vectors)
-            return index, vectors
+# OpenAI Embeddings für den Index erstellen
+@st.cache_resource
+def build_vector_index(df):
+    """Erstellt einen FAISS-Vektorspeicher mit OpenAI-Embeddings"""
+    texts = df["Volltext"].tolist()
+    embeddings_response = openai.Embedding.create(
+        model="text-embedding-ada-002",  # Hier das richtige Modell verwenden
+        input=texts
+    )
+    
+    embeddings = embeddings_response['data']
+    vectors = np.array([embedding['embedding'] for embedding in embeddings]).astype('float32')
+    index = faiss.IndexFlatL2(vectors.shape[1])
+    index.add(vectors)
+    return index, vectors
 
         index, vectors = build_vector_index(df)
 
