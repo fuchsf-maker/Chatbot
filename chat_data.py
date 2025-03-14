@@ -2,24 +2,21 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 import os
-import random
-import time
 
 LOG = "questions.log"
 
-# Add OpenAI API key input in sidebar
-st.sidebar.title("Konfiguration")
-api_key = st.sidebar.text_input(
-    "OpenAI API Key eingeben",
-    type="password",
-    help="Hol dir deinen Key von https://platform.openai.com/account/api-keys"
-)
+# API Key aus den Streamlit Secrets abrufen
+api_key = st.secrets.get("OPENAI_API_KEY")
+
+if not api_key:
+    st.error("API Key fehlt! Bitte in den Streamlit Secrets hinterlegen.")
+    st.stop()
 
 # ChatGPT Modell auswählen
 chatgpt_model = st.sidebar.selectbox(
     "ChatGPT Modell wählen",
     options=["gpt-3.5-turbo", "gpt-4-turbo"],
-    index=1, # Default auf gpt-4-turbo
+    index=1,  # Standardmäßig gpt-4-turbo
     help="Wähle das zu verwendende ChatGPT Modell"
 )
 
@@ -50,7 +47,6 @@ def load_data(file):
 
 def pre_process(df):
     """Bereinigt das DataFrame"""
-    # Behalte alle originalen Spalten bei
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     df.columns = df.columns.str.strip().str.lower()
     return df.dropna(how='all')
@@ -64,7 +60,7 @@ def full_text_search(df, query):
     except:
         return pd.DataFrame()
 
-def ask_question(question, context, api_key, model):
+def ask_question(question, context, model):
     """Verwendet ChatGPT zur Beantwortung der Frage mit Datenkontext"""
     try:
         client = OpenAI(api_key=api_key)
@@ -82,9 +78,9 @@ def ask_question(question, context, api_key, model):
         """
         
         response = client.chat.completions.create(
-            model=model,  # Dynamisches Modell
+            model=model,
             messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.7  # Etwas höhere Temperatur für kreativere Antworten
+            temperature=0.7
         )
         
         return response.choices[0].message.content
@@ -106,7 +102,6 @@ if uploaded_file:
     if df is not None:
         st.write(f"Geladene Datensätze: {len(df)}")
         
-        # Volltextsuche-Interface
         search_query = st.text_input("Suchbegriff eingeben (z.B. 'METS/MODS' oder 'Hochschulschriften'):")
         
         if search_query:
@@ -117,22 +112,13 @@ if uploaded_file:
                 st.dataframe(results[['datensetname', 'datenformat', 'kategorie 1', 'kategorie 2']])
                 
                 # ChatGPT-Analyse der Ergebnisse
-                if api_key:
-                    with st.spinner("Analysiere Treffer..."):
-                        # Formatiere die Daten für den Kontext
-                        context = results.to_string(index=False, columns=['datensetname', 'datenformat', 'kategorie 1', 'kategorie 2'])
-                        
-                        # Generiere eine Frage an ChatGPT
-                        prompt = f"Basierend auf diesen Datensets: {context}\n\n{search_query}"
-                        
-                        # Sende die Frage an ChatGPT und zeige die Antwort an
-                        answer = ask_question(prompt, context, api_key, chatgpt_model)
-                        st.subheader("ChatGPT Antwort:")
-                        st.write(answer)
-                else:
-                    st.warning("API-Key benötigt für Zusatzanalysen")
+                with st.spinner("Analysiere Treffer..."):
+                    context = results.to_string(index=False, columns=['datensetname', 'datenformat', 'kategorie 1', 'kategorie 2'])
+                    prompt = f"Basierend auf diesen Datensets: {context}\n\n{search_query}"
+                    answer = ask_question(prompt, context, chatgpt_model)
+                    st.subheader("ChatGPT Antwort:")
+                    st.write(answer)
             else:
                 st.warning("Keine Treffer gefunden")
-
 else:
     st.info("Bitte laden Sie eine Excel-Datei hoch")
