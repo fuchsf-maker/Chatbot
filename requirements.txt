@@ -4,3 +4,4 @@ llama-index-embeddings-huggingface
 streamlit
 pandas
 sentence-transformers
+openpyxl
