@@ -6,4 +6,5 @@ pandas
 sentence-transformers
 openpyxl
 openai
-faiss
+faiss-cpu
+numpy
